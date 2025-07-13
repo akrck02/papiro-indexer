@@ -59,7 +59,7 @@ func OpenFile(fileUrl string) (*os.File, error) {
 	}
 
 	// if it is a file
-	if !fileStats.IsDir() {
+	if fileStats.IsDir() {
 		return nil, errors.New("The given path is not a file.")
 	}
 
@@ -74,9 +74,14 @@ func OpenFile(fileUrl string) (*os.File, error) {
 
 func CopyFile(file io.Reader, url string) (int64, error) {
 
-	destination, err := os.Create(url)
-	if err != nil {
-		return 0, err
+	error := os.MkdirAll(filepath.Dir(url), 0755)
+	if nil != error {
+		return 0, error
+	}
+
+	destination, error := os.Create(url)
+	if error != nil {
+		return 0, error
 	}
 	defer destination.Close()
 

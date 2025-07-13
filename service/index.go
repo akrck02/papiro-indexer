@@ -10,7 +10,7 @@ import (
 	"github.com/akrck02/papiro-indexer/model"
 )
 
-func WriteIndex(index *map[string]model.IndexItem, path string) {
+func WriteIndex(index *model.IndexItem, path string) {
 
 	json, error := json.Marshal(index)
 	if nil != error {
@@ -21,55 +21,7 @@ func WriteIndex(index *map[string]model.IndexItem, path string) {
 	error = os.WriteFile(fmt.Sprintf("%s/%s", path, "/index.json"), json, 0644)
 }
 
-func IndexPath(index map[string]model.IndexItem, dirPath string) {
-
-	// try to open the directory
-	directory, error := OpenDirectory(dirPath)
-	if nil != error {
-		logger.Error(error.Error())
-		return
-	}
-	defer directory.Close()
-
-	// get children
-	files, error := os.ReadDir(directory.Name())
-	if nil != error {
-		logger.Error("Cannot access the directory:", error.Error())
-		return
-	}
-
-	// get relative path
-
-	// iterate over each item
-	for _, file := range files {
-
-		// check if file is accesible
-		info, error := file.Info()
-		if nil != error {
-			logger.Warning("Error accessing file", dirPath, "/", info.Name(), "skipping...")
-			break
-		}
-
-		// check if it is a directory or file, then index it (and children)
-		// the indexed path and the original path
-		name := EncodeUrl(file.Name())
-		subitem := &model.IndexItem{
-			Path: name,
-		}
-
-		if info.IsDir() {
-			subitem.Type = model.Directory
-			subitem.Files = make(map[string]model.IndexItem)
-			indexChildren(subitem, dirPath)
-		} else {
-			subitem.Type = model.File
-		}
-		index[name] = *subitem
-	}
-
-}
-
-func indexChildren(parentItem *model.IndexItem, dirPath string) {
+func IndexPath(parentItem *model.IndexItem, basePath string, dirPath string) {
 
 	// files not allowed
 	if parentItem.Type == model.File {
@@ -104,41 +56,43 @@ func indexChildren(parentItem *model.IndexItem, dirPath string) {
 
 		// check if it is a directory or file, then index it (and children)
 		// the indexed path and the original path
-		name := EncodeUrl(file.Name())
-
 		if info.IsDir() {
+			name := EncodeUrl(file.Name())
 			subitem := &model.IndexItem{
 				Type:  model.Directory,
 				Path:  name,
 				Files: make(map[string]model.IndexItem),
 			}
-			indexChildren(subitem, fmt.Sprintf("%s/%s", dirPath, info.Name()))
-			parentItem.Files[name] = *subitem
+			subDirPath := fmt.Sprintf("%s/%s", dirPath, info.Name())
+			IndexPath(subitem, basePath, subDirPath)
+
+			if 0 != len(subitem.Files) {
+				parentItem.Files[name] = *subitem
+			}
+
 		} else {
-			logger.Log(dirPath)
-			indexFile(parentItem, fmt.Sprintf("%s", dirPath), file.Name())
+			filePath := fmt.Sprintf("%s/%s", dirPath, file.Name())
+			indexFile(parentItem, basePath, filePath, file.Name())
 		}
 	}
 }
 
-func indexFile(parentItem *model.IndexItem, filePath string, name string) {
+func indexFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
 	extension := path.Ext(filePath)
 	switch extension {
 	case ".md":
-		indexMarkdownFile(parentItem, filePath, name)
+		indexMarkdownFile(parentItem, basePath, filePath, name)
 	case ".html":
-		indexHtmlFile(parentItem, filePath, name)
+		indexHtmlFile(parentItem, basePath, filePath, name)
 	default:
-		indexNonMarkupLanguagefile(parentItem, filePath, name)
+		indexNonMarkupLanguagefile(parentItem, basePath, filePath)
 	}
 }
 
-func indexMarkdownFile(parentItem *model.IndexItem, filePath string, name string) {
-	newRoute := os.Getenv("WIKI_PATH")
-	newRoute += "/" + name
-	newRoute = EncodeUrl(RemoveExtension(newRoute))
+func indexMarkdownFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
 
-	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newRoute)
+	newRoute := EncodeUrl(fmt.Sprintf("%s%s.%s", os.Getenv("WIKI_PATH"), RemoveExtension(RemovePathStart(filePath, basePath)), "md"))
+
 	subitem := &model.IndexItem{
 		Type:  model.File,
 		Path:  EncodeUrl(name),
@@ -156,7 +110,7 @@ func indexMarkdownFile(parentItem *model.IndexItem, filePath string, name string
 	parentItem.Files[name] = *subitem
 }
 
-func indexHtmlFile(parentItem *model.IndexItem, filePath string, name string) {
+func indexHtmlFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
 	newRoute := RemoveExtension(EncodeUrl(filePath))
 	subitem := &model.IndexItem{
 		Type:  model.File,
@@ -167,6 +121,15 @@ func indexHtmlFile(parentItem *model.IndexItem, filePath string, name string) {
 	parentItem.Files[name] = *subitem
 }
 
-func indexNonMarkupLanguagefile(parentItem *model.IndexItem, path string, name string) {
-	//logger.Log("▸", "🖼️", path.Base(filePath), "⤳ ", newRoute)
+func indexNonMarkupLanguagefile(_ *model.IndexItem, basePath string, filePath string) {
+
+	newRoute := EncodeUrl(fmt.Sprintf("%s%s", os.Getenv("WIKI_PATH"), RemovePathStart(filePath, basePath)))
+	file, error := OpenFile(filePath)
+	if nil != error {
+		logger.Error(error.Error())
+		return
+	}
+
+	CopyFile(file, newRoute)
+	logger.Log("▸", "🖼️ ", path.Base(filePath), "⤳ ", newRoute)
 }

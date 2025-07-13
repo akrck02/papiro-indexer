@@ -11,8 +11,12 @@ import (
 
 func Index(filePath string) {
 	startTime := time.Now()
-	index := make(map[string]model.IndexItem)
-	service.IndexPath(index, filePath)
+	index := model.IndexItem{
+		Type:  model.Directory,
+		Path:  "/",
+		Files: make(map[string]model.IndexItem),
+	}
+	service.IndexPath(&index, filePath, filePath)
 	service.WriteIndex(&index, os.Getenv("WIKI_PATH"))
 	fmt.Println("\n", "⤷ Indexed in", time.Now().Sub(startTime).Milliseconds(), "ms.")
 }
