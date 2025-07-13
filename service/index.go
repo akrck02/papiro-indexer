@@ -10,6 +10,8 @@ import (
 	"github.com/akrck02/papiro-indexer/model"
 )
 
+const htmlExtension = "html"
+
 func WriteIndex(index *model.IndexItem, path string) {
 
 	json, error := json.Marshal(index)
@@ -18,7 +20,7 @@ func WriteIndex(index *model.IndexItem, path string) {
 		return
 	}
 
-	error = os.WriteFile(fmt.Sprintf("%s/%s", path, "/index.json"), json, 0644)
+	error = os.WriteFile(fmt.Sprintf("%s/%s", path, "index.json"), json, defaultFilePermissions)
 }
 
 func IndexPath(parentItem *model.IndexItem, basePath string, dirPath string) {
@@ -63,15 +65,19 @@ func IndexPath(parentItem *model.IndexItem, basePath string, dirPath string) {
 				Path:  name,
 				Files: make(map[string]model.IndexItem),
 			}
-			subDirPath := fmt.Sprintf("%s/%s", dirPath, info.Name())
+			subDirPath := CreateUrl(dirPath, info.Name())
 			IndexPath(subitem, basePath, subDirPath)
 
 			if 0 != len(subitem.Files) {
+				_, exists := parentItem.Files[name]
+				if exists {
+					subitem.Path = parentItem.Files[name].Path
+				}
 				parentItem.Files[name] = *subitem
 			}
 
 		} else {
-			filePath := fmt.Sprintf("%s/%s", dirPath, file.Name())
+			filePath := CreateUrl(dirPath, file.Name())
 			indexFile(parentItem, basePath, filePath, file.Name())
 		}
 	}
@@ -91,23 +97,45 @@ func indexFile(parentItem *model.IndexItem, basePath string, filePath string, na
 
 func indexMarkdownFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
 
-	newRoute := EncodeUrl(fmt.Sprintf("%s%s.%s", os.Getenv("WIKI_PATH"), RemoveExtension(RemovePathStart(filePath, basePath)), "md"))
+	newFileName := ChangeExtension(name, htmlExtension)
+	newFileUrl := CreateEncodedUrl(os.Getenv("WIKI_PATH"), RemoveExtension(RemoveUrlStart(filePath, basePath))+"."+htmlExtension)
 
 	subitem := &model.IndexItem{
 		Type:  model.File,
-		Path:  EncodeUrl(name),
+		Path:  EncodeUrl(newFileName),
 		Files: make(map[string]model.IndexItem),
 	}
 
-	file, error := OpenFile(filePath)
+	bytes, error := ReadFile(filePath)
 	if nil != error {
 		logger.Error(error.Error())
 		return
 	}
 
-	CopyFile(file, newRoute)
-	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newRoute)
-	parentItem.Files[name] = *subitem
+	bytes = MarkdownToHtml(bytes)
+	error = WriteFile(bytes, newFileUrl)
+	if nil != error {
+		logger.Error(error.Error())
+		return
+	}
+
+	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newFileUrl)
+
+	index := EncodeUrl(RemoveExtension(name))
+	_, exists := parentItem.Files[index]
+	if exists {
+		parentItem.Files[index] = model.IndexItem{
+			Path:  subitem.Path,
+			Type:  parentItem.Files[index].Type,
+			Files: parentItem.Files[index].Files,
+		}
+	} else {
+		parentItem.Files[index] = *subitem
+	}
+}
+
+func getNewFileRoute(filePath string, basePath string, newExtension string) string {
+	return fmt.Sprintf("%s.%s", RemoveExtension(RemoveUrlStart(filePath, basePath)), newExtension)
 }
 
 func indexHtmlFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
@@ -123,7 +151,7 @@ func indexHtmlFile(parentItem *model.IndexItem, basePath string, filePath string
 
 func indexNonMarkupLanguagefile(_ *model.IndexItem, basePath string, filePath string) {
 
-	newRoute := EncodeUrl(fmt.Sprintf("%s%s", os.Getenv("WIKI_PATH"), RemovePathStart(filePath, basePath)))
+	newRoute := EncodeUrl(fmt.Sprintf("%s%s", os.Getenv("WIKI_PATH"), RemoveUrlStart(filePath, basePath)))
 	file, error := OpenFile(filePath)
 	if nil != error {
 		logger.Error(error.Error())
@@ -131,5 +159,5 @@ func indexNonMarkupLanguagefile(_ *model.IndexItem, basePath string, filePath st
 	}
 
 	CopyFile(file, newRoute)
-	logger.Log("▸", "🖼️ ", path.Base(filePath), "⤳ ", newRoute)
+	// logger.Log("▸", "🖼️ ", path.Base(filePath), "⤳ ", newRoute)
 }
