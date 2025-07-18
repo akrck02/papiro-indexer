@@ -138,15 +138,43 @@ func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string,
 	return fmt.Sprintf("%s.%s", RemoveExtension(RemoveUrlStart(filePath, configuration.Path)), newExtension)
 }
 
-func indexHtmlFile(_ *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
-	newRoute := RemoveExtension(EncodeUrl(filePath))
+func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
+
+	newFileName := ChangeExtension(name, htmlExtension)
+	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveUrlStart(filePath, configuration.Path))
+
 	subitem := &model.IndexItem{
 		Type:  model.File,
-		Path:  EncodeUrl(name),
+		Path:  EncodeUrl(newFileName),
 		Files: make(map[string]model.IndexItem),
 	}
-	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newRoute)
-	parentItem.Files[name] = *subitem
+
+	bytes, error := ReadFile(filePath)
+	if nil != error {
+		logger.Error(error.Error())
+		return
+	}
+
+	error = WriteFile(bytes, newFileUrl)
+	if nil != error {
+		logger.Error(error.Error())
+		return
+	}
+
+	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newFileUrl)
+
+	index := EncodeUrl(RemoveExtension(name))
+	_, exists := parentItem.Files[index]
+	if exists {
+		parentItem.Files[index] = model.IndexItem{
+			Path:  subitem.Path,
+			Type:  parentItem.Files[index].Type,
+			Files: parentItem.Files[index].Files,
+		}
+	} else {
+		parentItem.Files[index] = *subitem
+	}
+
 }
 
 func indexNonMarkupLanguagefile(configuration *model.IndexerConfiguration, _ *model.IndexItem, filePath string) {
