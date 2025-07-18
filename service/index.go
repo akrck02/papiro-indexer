@@ -98,7 +98,7 @@ func indexFile(configuration *model.IndexerConfiguration, parentItem *model.Inde
 func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 
 	newFileName := ChangeExtension(name, htmlExtension)
-	newFileUrl := CreateEncodedUrl(os.Getenv("WIKI_PATH"), RemoveExtension(RemoveUrlStart(filePath, configuration.Path))+"."+htmlExtension)
+	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveExtension(RemoveUrlStart(filePath, configuration.Path))+"."+htmlExtension)
 
 	subitem := &model.IndexItem{
 		Type:  model.File,
@@ -151,7 +151,7 @@ func indexHtmlFile(_ *model.IndexerConfiguration, parentItem *model.IndexItem, f
 
 func indexNonMarkupLanguagefile(configuration *model.IndexerConfiguration, _ *model.IndexItem, filePath string) {
 
-	newRoute := EncodeUrl(fmt.Sprintf("%s%s", os.Getenv("WIKI_PATH"), RemoveUrlStart(filePath, configuration.Path)))
+	newRoute := EncodeUrl(fmt.Sprintf("%s%s", configuration.Destination, RemoveUrlStart(filePath, configuration.Path)))
 	file, error := OpenFile(filePath)
 	if nil != error {
 		logger.Error(error.Error())
