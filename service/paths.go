@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const defaultFilePermissions = 0755
+const defaultFilePermissions = 0766
 
 func EncodeUrl(url string) string {
 	url = strings.TrimSpace(url)
