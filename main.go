@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/akrck02/papiro-indexer/command"
+	"github.com/akrck02/papiro-indexer/model"
 )
 
 // Log app title to standard output
@@ -16,24 +18,40 @@ func logAppTitle() {
 
 func main() {
 
-	logAppTitle()
+	PathFlag := flag.String("path", "", "papiro indexer -path ./my/directory")
+	outputPathFlag := flag.String("destination", "", "papiro indexer -path ./my/directory -destination ./new/directory")
+	isObsidianProjectFlag := flag.Bool("obsidian", false, "papiro indexer -path ./my/directory -destination ./new/directory -obsidian")
 
-	envPathFlag := flag.String("e", "", "-e ./my/env/file")
-	PathFlag := flag.String("d", "", "-d ./my/directory")
 	flag.Parse()
 
-	// Open help if help flag is present.
-	if "" != *PathFlag {
-
-		// Load env file configuration if present.
-		if "" != *envPathFlag {
-			command.LoadEnv(*envPathFlag)
-		}
-
-		// Index files.
-		command.Index(*PathFlag)
+	// Load path if present, help otherwise.
+	path := *PathFlag
+	if "" == path {
+		command.Help()
 		return
 	}
 
-	command.Help()
+	// Load destination if present.
+	destination := *outputPathFlag
+	if "" == destination {
+		command.Help()
+		return
+	}
+
+	isObsidianProject := *isObsidianProjectFlag
+
+	logAppTitle()
+
+	configuration := model.IndexerConfiguration{
+		Path:              path,
+		Destination:       destination,
+		IsObsidianProject: isObsidianProject,
+	}
+
+	fmt.Println("path:", path)
+	fmt.Println("destination:", destination)
+	fmt.Println("is obsidian:", isObsidianProject)
+
+	// Index files.
+	command.Index(&configuration)
 }

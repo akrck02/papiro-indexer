@@ -1,9 +1,11 @@
 package command
 
+import "flag"
+
 func Help() {
 
-	println(" Papiro indexer help: ")
-	println("------------------------------------------------------")
-	println("-e | env file to be loaded (Optional).")
-	println("-d | index a directory")
+	println("-------------------------------------")
+	println("      📜 Papiro indexer help 📜      ")
+	println("-------------------------------------")
+	flag.Usage()
 }

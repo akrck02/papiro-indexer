@@ -23,7 +23,7 @@ func WriteIndex(index *model.IndexItem, path string) {
 	error = os.WriteFile(fmt.Sprintf("%s/%s", path, "index.json"), json, defaultFilePermissions)
 }
 
-func IndexPath(parentItem *model.IndexItem, basePath string, dirPath string) {
+func IndexPath(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, dirPath string) {
 
 	// files not allowed
 	if parentItem.Type == model.File {
@@ -66,7 +66,7 @@ func IndexPath(parentItem *model.IndexItem, basePath string, dirPath string) {
 				Files: make(map[string]model.IndexItem),
 			}
 			subDirPath := CreateUrl(dirPath, info.Name())
-			IndexPath(subitem, basePath, subDirPath)
+			IndexPath(configuration, subitem, subDirPath)
 
 			if 0 != len(subitem.Files) {
 				_, exists := parentItem.Files[name]
@@ -78,27 +78,27 @@ func IndexPath(parentItem *model.IndexItem, basePath string, dirPath string) {
 
 		} else {
 			filePath := CreateUrl(dirPath, file.Name())
-			indexFile(parentItem, basePath, filePath, file.Name())
+			indexFile(configuration, parentItem, filePath, file.Name())
 		}
 	}
 }
 
-func indexFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
+func indexFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 	extension := path.Ext(filePath)
 	switch extension {
 	case ".md":
-		indexMarkdownFile(parentItem, basePath, filePath, name)
+		indexMarkdownFile(configuration, parentItem, filePath, name)
 	case ".html":
-		indexHtmlFile(parentItem, basePath, filePath, name)
+		indexHtmlFile(configuration, parentItem, filePath, name)
 	default:
-		indexNonMarkupLanguagefile(parentItem, basePath, filePath)
+		indexNonMarkupLanguagefile(configuration, parentItem, filePath)
 	}
 }
 
-func indexMarkdownFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
+func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 
 	newFileName := ChangeExtension(name, htmlExtension)
-	newFileUrl := CreateEncodedUrl(os.Getenv("WIKI_PATH"), RemoveExtension(RemoveUrlStart(filePath, basePath))+"."+htmlExtension)
+	newFileUrl := CreateEncodedUrl(os.Getenv("WIKI_PATH"), RemoveExtension(RemoveUrlStart(filePath, configuration.Path))+"."+htmlExtension)
 
 	subitem := &model.IndexItem{
 		Type:  model.File,
@@ -134,11 +134,11 @@ func indexMarkdownFile(parentItem *model.IndexItem, basePath string, filePath st
 	}
 }
 
-func getNewFileRoute(filePath string, basePath string, newExtension string) string {
-	return fmt.Sprintf("%s.%s", RemoveExtension(RemoveUrlStart(filePath, basePath)), newExtension)
+func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string, newExtension string) string {
+	return fmt.Sprintf("%s.%s", RemoveExtension(RemoveUrlStart(filePath, configuration.Path)), newExtension)
 }
 
-func indexHtmlFile(parentItem *model.IndexItem, basePath string, filePath string, name string) {
+func indexHtmlFile(_ *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 	newRoute := RemoveExtension(EncodeUrl(filePath))
 	subitem := &model.IndexItem{
 		Type:  model.File,
@@ -149,9 +149,9 @@ func indexHtmlFile(parentItem *model.IndexItem, basePath string, filePath string
 	parentItem.Files[name] = *subitem
 }
 
-func indexNonMarkupLanguagefile(_ *model.IndexItem, basePath string, filePath string) {
+func indexNonMarkupLanguagefile(configuration *model.IndexerConfiguration, _ *model.IndexItem, filePath string) {
 
-	newRoute := EncodeUrl(fmt.Sprintf("%s%s", os.Getenv("WIKI_PATH"), RemoveUrlStart(filePath, basePath)))
+	newRoute := EncodeUrl(fmt.Sprintf("%s%s", os.Getenv("WIKI_PATH"), RemoveUrlStart(filePath, configuration.Path)))
 	file, error := OpenFile(filePath)
 	if nil != error {
 		logger.Error(error.Error())
