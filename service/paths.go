@@ -1,10 +1,8 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,96 +20,70 @@ func RemoveUrlStart(url string, start string) string {
 	return newPath
 }
 
-func accessFileStats(fileUrl string) (fs.FileInfo, error) {
-
-	// If input file does not exists, raise an error
-	fileStats, error := os.Stat(fileUrl)
-	if os.IsNotExist(error) {
-		return nil, errors.New("path does not exist.")
+func accessFileStats(fileUrl string) (os.FileInfo, error) {
+	// Security: Prevent directory traversal attacks
+	if strings.Contains(fileUrl, "..") {
+		return nil, fmt.Errorf("invalid path: directory traversal not allowed")
 	}
 
-	if nil != error {
-		return nil, errors.New(fmt.Sprint("Cannot access stats for path", fileUrl, ":", error.Error()))
+	fileStats, err := os.Stat(fileUrl)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("path does not exist: %s", fileUrl)
 	}
-
+	if err != nil {
+		return nil, fmt.Errorf("cannot access stats for path %s: %w", fileUrl, err)
+	}
 	return fileStats, nil
 }
 
 func OpenDirectory(fileUrl string) (*os.File, error) {
-
-	fileStats, error := accessFileStats(fileUrl)
-	if nil != error {
-		return nil, error
+	fileStats, err := accessFileStats(fileUrl)
+	if err != nil {
+		return nil, err
 	}
 
-	// if it is a file
 	if !fileStats.IsDir() {
-		return nil, errors.New("The given path is not a directory.")
+		return nil, fmt.Errorf("the given path is not a directory: %s", fileUrl)
 	}
 
-	// open the directory
-	inputFile, error := os.Open(fileUrl)
-	if nil != error {
-		return nil, errors.New(fmt.Sprint("Cannot access the directory:", error.Error()))
-	}
-
-	return inputFile, nil
+	return os.Open(fileUrl)
 }
 
 func OpenFile(fileUrl string) (*os.File, error) {
-
-	// If input file does not exists, raise an error
-	fileStats, error := accessFileStats(fileUrl)
-	if nil != error {
-		return nil, error
+	fileStats, err := accessFileStats(fileUrl)
+	if err != nil {
+		return nil, err
 	}
 
-	// if it is a file
 	if fileStats.IsDir() {
-		return nil, errors.New("The given path is not a file.")
+		return nil, fmt.Errorf("the given path is a directory, expected a file: %s", fileUrl)
 	}
 
-	// open the directory
-	inputFile, error := os.Open(fileUrl)
-	if nil != error {
-		return nil, errors.New(fmt.Sprint("Cannot access the file:", error.Error()))
-	}
-
-	return inputFile, nil
+	return os.Open(fileUrl)
 }
 
 func ReadFile(fileUrl string) ([]byte, error) {
-
-	// If input file does not exists, raise an error
-	fileStats, error := accessFileStats(fileUrl)
-	if nil != error {
-		return nil, error
+	fileStats, err := accessFileStats(fileUrl)
+	if err != nil {
+		return nil, err
 	}
 
-	// if it is a file
 	if fileStats.IsDir() {
-		return nil, errors.New("The given path is not a file.")
+		return nil, fmt.Errorf("the given path is a directory, expected a file: %s", fileUrl)
 	}
 
-	// open the directory
-	bytes, error := os.ReadFile(fileUrl)
-	if nil != error {
-		return nil, errors.New(fmt.Sprint("Cannot access the file:", error.Error()))
-	}
-
-	return bytes, nil
+	return os.ReadFile(fileUrl)
 }
 
 func CopyFile(file io.Reader, fileUrl string) (int64, error) {
-
-	error := os.MkdirAll(filepath.Dir(fileUrl), 0644)
-	if nil != error {
-		return 0, error
+	err := os.MkdirAll(filepath.Dir(fileUrl), 0644)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create directory for %s: %w", fileUrl, err)
 	}
 
-	destination, error := os.Create(fileUrl)
-	if error != nil {
-		return 0, error
+	destination, err := os.Create(fileUrl)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create file %s: %w", fileUrl, err)
 	}
 	defer destination.Close()
 
@@ -119,10 +91,9 @@ func CopyFile(file io.Reader, fileUrl string) (int64, error) {
 }
 
 func WriteFile(bytes []byte, fileUrl string) error {
-
-	error := os.MkdirAll(filepath.Dir(fileUrl), defaultFilePermissions)
-	if nil != error {
-		return error
+	err := os.MkdirAll(filepath.Dir(fileUrl), defaultFilePermissions)
+	if err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", fileUrl, err)
 	}
 
 	return os.WriteFile(fileUrl, bytes, defaultFilePermissions)
@@ -148,4 +119,35 @@ func RemoveSlashes(url string) string {
 
 func ChangeExtension(url string, extension string) string {
 	return fmt.Sprintf("%s.%s", RemoveExtension(url), extension)
+}
+
+// ExtractNumber extracts the leading number from a filename for sorting.
+// Returns 0 if no number is found at the start.
+func ExtractNumber(filename string) int {
+	var num int
+	for _, r := range filename {
+		if r >= '0' && r <= '9' {
+			num = num*10 + int(r-'0')
+		} else {
+			break
+		}
+	}
+	return num
+}
+
+// SortByNumber sorts a slice of filenames based on their leading number.
+func SortByNumber(files []string) []string {
+	sorted := make([]string, len(files))
+	copy(sorted, files)
+	
+	for i := 0; i < len(sorted); i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			numI := ExtractNumber(sorted[i])
+			numJ := ExtractNumber(sorted[j])
+			if numI > numJ {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+	return sorted
 }

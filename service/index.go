@@ -4,87 +4,75 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 
-	"github.com/akrck02/papiro-indexer/logger"
-	"github.com/akrck02/papiro-indexer/model"
+	"github.com/akrck02/papiro/logger"
+	"github.com/akrck02/papiro/model"
 )
 
 const htmlExtension = "html"
 
 func WriteIndex(index *model.IndexItem, path string) {
-
-	json, error := json.Marshal(index)
-	if nil != error {
-		fmt.Println("Error converting to json format :", error.Error())
+	jsonData, err := json.MarshalIndent(index, "", "  ")
+	if err != nil {
+		logger.Error(fmt.Errorf("error converting to json format: %w", err))
 		return
 	}
 
-	error = os.WriteFile(fmt.Sprintf("%s/%s", path, "index.json"), json, defaultFilePermissions)
+	err = os.WriteFile(fmt.Sprintf("%s/%s", path, "index.json"), jsonData, defaultFilePermissions)
+	if err != nil {
+		logger.Error(fmt.Errorf("error writing index file: %w", err))
+	} else {
+		logger.Debug("Index written successfully to", fmt.Sprintf("%s/index.json", path))
+	}
 }
 
 func IndexPath(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, dirPath string) {
-
-	// files not allowed
 	if parentItem.Type == model.File {
 		logger.Warning(parentItem.Path, "is a file.")
 		return
 	}
 
-	// try to open the directory
-	directory, error := OpenDirectory(dirPath)
-	if nil != error {
-		logger.Error(error.Error())
+	directory, err := OpenDirectory(dirPath)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to open directory %s: %w", dirPath, err))
 		return
 	}
 	defer directory.Close()
 
-	// get children
-	files, error := os.ReadDir(directory.Name())
-	if nil != error {
-		logger.Error("Cannot access the directory:", error.Error())
+	files, err := directory.Readdirnames(0)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to read directory %s: %w", dirPath, err))
 		return
 	}
 
-	// iterate over each item
-	for _, file := range files {
+	// Sort files by number for deterministic ordering
+	files = SortByNumber(files)
 
-		// check if file is accesible
-		info, error := file.Info()
-		if nil != error {
-			logger.Warning("Error accessing file", dirPath, "/", info.Name(), "skipping...")
-			break
+	for _, file := range files {
+		fullPath := filepath.Join(dirPath, file)
+		fileInfo, err := os.Stat(fullPath)
+		if err != nil {
+			logger.Warning(fmt.Errorf("could not stat %s: %w", fullPath, err))
+			continue
 		}
 
-		// check if it is a directory or file, then index it (and children)
-		// the indexed path and the original path
-		if info.IsDir() {
-			name := EncodeUrl(file.Name())
-			subitem := &model.IndexItem{
+		if fileInfo.IsDir() {
+			newItem := &model.IndexItem{
 				Type:  model.Directory,
-				Path:  name,
+				Path:  EncodeUrl(file),
 				Files: make(map[string]model.IndexItem),
 			}
-			subDirPath := CreateUrl(dirPath, info.Name())
-			IndexPath(configuration, subitem, subDirPath)
-
-			if 0 != len(subitem.Files) {
-				_, exists := parentItem.Files[name]
-				if exists {
-					subitem.Path = parentItem.Files[name].Path
-				}
-				parentItem.Files[name] = *subitem
-			}
-
+			parentItem.Files[file] = *newItem
+			IndexPath(configuration, newItem, fullPath)
 		} else {
-			filePath := CreateUrl(dirPath, file.Name())
-			indexFile(configuration, parentItem, filePath, file.Name())
+			indexFile(configuration, parentItem, fullPath, file)
 		}
 	}
 }
 
 func indexFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
-	extension := path.Ext(filePath)
+	extension := filepath.Ext(filePath)
 	switch extension {
 	case ".md":
 		indexMarkdownFile(configuration, parentItem, filePath, name)
@@ -96,50 +84,6 @@ func indexFile(configuration *model.IndexerConfiguration, parentItem *model.Inde
 }
 
 func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
-
-	newFileName := ChangeExtension(name, htmlExtension)
-	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveExtension(RemoveUrlStart(filePath, configuration.Path))+"."+htmlExtension)
-
-	subitem := &model.IndexItem{
-		Type:  model.File,
-		Path:  EncodeUrl(newFileName),
-		Files: make(map[string]model.IndexItem),
-	}
-
-	bytes, error := ReadFile(filePath)
-	if nil != error {
-		logger.Error(error.Error())
-		return
-	}
-
-	bytes = MarkdownToHtml(bytes)
-	error = WriteFile(bytes, newFileUrl)
-	if nil != error {
-		logger.Error(error.Error())
-		return
-	}
-
-	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newFileUrl)
-
-	index := EncodeUrl(RemoveExtension(name))
-	_, exists := parentItem.Files[index]
-	if exists {
-		parentItem.Files[index] = model.IndexItem{
-			Path:  subitem.Path,
-			Type:  parentItem.Files[index].Type,
-			Files: parentItem.Files[index].Files,
-		}
-	} else {
-		parentItem.Files[index] = *subitem
-	}
-}
-
-func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string, newExtension string) string {
-	return fmt.Sprintf("%s.%s", RemoveExtension(RemoveUrlStart(filePath, configuration.Path)), newExtension)
-}
-
-func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
-
 	newFileName := ChangeExtension(name, htmlExtension)
 	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveUrlStart(filePath, configuration.Path))
 
@@ -149,43 +93,66 @@ func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.
 		Files: make(map[string]model.IndexItem),
 	}
 
-	bytes, error := ReadFile(filePath)
-	if nil != error {
-		logger.Error(error.Error())
+	content, err := ReadFile(filePath)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to read markdown file %s: %w", filePath, err))
 		return
 	}
 
-	error = WriteFile(bytes, newFileUrl)
-	if nil != error {
-		logger.Error(error.Error())
+	htmlContent := MarkdownToHtml(content)
+	err = os.WriteFile(newFileUrl, htmlContent, defaultFilePermissions)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to write html file %s: %w", newFileUrl, err))
 		return
 	}
 
-	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newFileUrl)
+	parentItem.Files[name] = *subitem
+	logger.Debug("Indexed markdown:", filePath)
+}
 
-	index := EncodeUrl(RemoveExtension(name))
-	_, exists := parentItem.Files[index]
-	if exists {
-		parentItem.Files[index] = model.IndexItem{
-			Path:  subitem.Path,
-			Type:  parentItem.Files[index].Type,
-			Files: parentItem.Files[index].Files,
-		}
-	} else {
-		parentItem.Files[index] = *subitem
+func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string, newExtension string) string {
+	return fmt.Sprintf("%s.%s", RemoveExtension(RemoveUrlStart(filePath, configuration.Path)), newExtension)
+}
+
+func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
+	newFileName := ChangeExtension(name, htmlExtension)
+	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveUrlStart(filePath, configuration.Path))
+
+	subitem := &model.IndexItem{
+		Type:  model.File,
+		Path:  EncodeUrl(newFileName),
+		Files: make(map[string]model.IndexItem),
 	}
 
+	content, err := ReadFile(filePath)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to read html file %s: %w", filePath, err))
+		return
+	}
+
+	err = os.WriteFile(newFileUrl, content, defaultFilePermissions)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to write html file %s: %w", newFileUrl, err))
+		return
+	}
+
+	parentItem.Files[name] = *subitem
+	logger.Debug("Indexed html:", filePath)
 }
 
 func indexNonMarkupLanguagefile(configuration *model.IndexerConfiguration, _ *model.IndexItem, filePath string) {
-
 	newRoute := EncodeUrl(fmt.Sprintf("%s%s", configuration.Destination, RemoveUrlStart(filePath, configuration.Path)))
-	file, error := OpenFile(filePath)
-	if nil != error {
-		logger.Error(error.Error())
+	file, err := OpenFile(filePath)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to open file %s: %w", filePath, err))
 		return
 	}
+	defer file.Close()
 
-	CopyFile(file, newRoute)
-	// logger.Log("▸", "🖼️ ", path.Base(filePath), "⤳ ", newRoute)
+	_, err = CopyFile(file, newRoute)
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to copy file %s: %w", filePath, err))
+		return
+	}
+	logger.Debug("Copied asset:", filePath)
 }
