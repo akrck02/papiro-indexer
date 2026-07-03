@@ -76,7 +76,7 @@ func ReadFile(fileUrl string) ([]byte, error) {
 }
 
 func CopyFile(file io.Reader, fileUrl string) (int64, error) {
-	err := os.MkdirAll(filepath.Dir(fileUrl), 0644)
+	err := os.MkdirAll(filepath.Dir(fileUrl), defaultFilePermissions)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create directory for %s: %w", fileUrl, err)
 	}

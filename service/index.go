@@ -110,10 +110,6 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 	logger.Debug("Indexed markdown:", filePath)
 }
 
-func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string, newExtension string) string {
-	return fmt.Sprintf("%s.%s", RemoveExtension(RemoveUrlStart(filePath, configuration.Path)), newExtension)
-}
-
 func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 	newFileName := ChangeExtension(name, htmlExtension)
 	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveUrlStart(filePath, configuration.Path))
