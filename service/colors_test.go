@@ -3,7 +3,7 @@ package service
 import "testing"
 
 func TestMatchesQuery(t *testing.T) {
-	page := newColorPage("Projects/Garden/Tomatoes.md", "---\ntype: plant\ntags: [summer, food/vegetable]\n---\nPlanted in #spring by the wall.\n")
+	page := newColorPage("Projects/Garden/Tomatoes.md", "---\ntype: plant\nmain-color: imperial-red\ntags: [summer, food/vegetable]\n---\nPlanted in #spring by the wall.\n")
 
 	cases := map[string]bool{
 		"path:Projects/Garden":          true,

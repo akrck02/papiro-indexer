@@ -155,7 +155,7 @@ func matchesTerm(term string, page colorPage) bool {
 	if strings.HasPrefix(term, "[") && strings.HasSuffix(term, "]") {
 		key, value, hasValue := strings.Cut(term[1:len(term)-1], ":")
 		for name, propertyValue := range page.properties {
-			if !strings.EqualFold(name, strings.TrimSpace(key)) {
+			if !strings.EqualFold(name, unquote(strings.TrimSpace(key))) {
 				continue
 			}
 			if !hasValue {
