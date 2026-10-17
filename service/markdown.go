@@ -12,8 +12,10 @@ import (
 )
 
 // MarkdownToHtml renders the markdown of a document placed in documentDir
-// (relative to the wiki root) to html.
-func MarkdownToHtml(md []byte, documentDir string) []byte {
+// (relative to the wiki root) to html. It also returns the wiki routes the
+// document links to, which may not exist.
+func MarkdownToHtml(md []byte, documentDir string) ([]byte, []string) {
+	links := []string{}
 	// create markdown parser with extensions
 	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(extensions)
@@ -27,7 +29,11 @@ func MarkdownToHtml(md []byte, documentDir string) []byte {
 
 		switch item := node.(type) {
 		case *ast.Link:
-			item.Destination = []byte(ResolveWikiUrl(string(item.Destination), documentDir, true))
+			resolved := ResolveWikiUrl(string(item.Destination), documentDir, true)
+			if route, ok := pageRoute(resolved); ok {
+				links = append(links, route)
+			}
+			item.Destination = []byte(resolved)
 		case *ast.Image:
 			item.Destination = []byte(ResolveWikiUrl(string(item.Destination), documentDir, false))
 		}
@@ -39,7 +45,21 @@ func MarkdownToHtml(md []byte, documentDir string) []byte {
 	opts := html.RendererOptions{Flags: htmlFlags}
 	renderer := html.NewRenderer(opts)
 
-	return markdown.Render(doc, renderer)
+	return markdown.Render(doc, renderer), links
+}
+
+// pageRoute returns the wiki route of a resolved link when it can point to a page
+func pageRoute(resolved string) (string, bool) {
+	if !strings.HasPrefix(resolved, "./") {
+		return "", false
+	}
+
+	route, err := url.PathUnescape(strings.TrimPrefix(resolved, "./"))
+	if nil != err || "" == route || "" != path.Ext(route) {
+		return "", false
+	}
+
+	return route, true
 }
 
 // ResolveWikiUrl converts a url relative to the document directory (or to the

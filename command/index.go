@@ -18,5 +18,6 @@ func Index(configuration *model.IndexerConfiguration) {
 	service.PrepareObsidianVault(configuration)
 	service.IndexPath(configuration, &index, configuration.Path)
 	service.WriteIndex(&index, configuration.Destination)
+	service.WriteGraph(configuration.Destination)
 	fmt.Println("\n", "⤷ Indexed in", time.Now().Sub(startTime).Milliseconds(), "ms.")
 }

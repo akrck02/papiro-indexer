@@ -132,7 +132,8 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 	}
 
 	documentDir := path.Dir(strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/"))
-	bytes = MarkdownToHtml(bytes, documentDir)
+	bytes, links := MarkdownToHtml(bytes, documentDir)
+	AddPageLinks(EncodeUrl(RemoveExtension(strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/"))), links)
 	error = WriteFile(bytes, newFileUrl)
 	if nil != error {
 		logger.Error(error.Error())

@@ -32,7 +32,11 @@ func TestResolveWikiUrl(t *testing.T) {
 }
 
 func TestMarkdownToHtmlResolvesRelativeUrls(t *testing.T) {
-	html := string(MarkdownToHtml([]byte("[Text](text.md) ![x](../images/x.png)"), "components"))
+	bytes, links := MarkdownToHtml([]byte("[Text](text.md) ![x](../images/x.png) [web](https://example.com) [Up](../README.md#a) [Image](x.png)"), "components")
+	html := string(bytes)
+	if strings.Join(links, ",") != "components/text,readme" {
+		t.Errorf("unexpected page links: %v", links)
+	}
 	for _, expected := range []string{`href="./components/text"`, `src="./images/x.png"`} {
 		if !strings.Contains(html, expected) {
 			t.Errorf("%s not found in %s", expected, html)
