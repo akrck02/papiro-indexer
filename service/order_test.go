@@ -11,7 +11,8 @@ func TestSplitOrder(t *testing.T) {
 		"02_installation":   {2, "installation"},
 		"10 Notes.md":       {10, "Notes.md"},
 		"2026-10-17.md":     {0, "2026-10-17.md"},
-		"3-body.md":         {0, "3-body.md"},
+		"1-overview.md":     {1, "overview.md"},
+		"123-days.md":       {0, "123-days.md"},
 		"get-started.md":    {0, "get-started.md"},
 	}
 
