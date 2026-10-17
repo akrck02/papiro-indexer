@@ -16,3 +16,7 @@ It converts:
 - `> [!type] title` callouts into quotes with a bold title.
 - `==highlights==`, `#tags` and `%%comments%%`.
 - YAML frontmatter is removed and hidden folders (`.obsidian`, `.trash`) are not published.
+
+## AI disclosure
+
+This project was originally handcrafted. Claude (Anthropic's AI assistant) has since helped with some changes, such as the Obsidian vault support, and they were reviewed by the author.
