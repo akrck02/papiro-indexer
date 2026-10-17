@@ -30,6 +30,7 @@ var obsidianVault *ObsidianVault
 func PrepareObsidianVault(configuration *model.IndexerConfiguration) {
 	if configuration.IsObsidianProject {
 		obsidianVault = LoadObsidianVault(configuration.Path)
+		LoadColorGroups(configuration.Path)
 	}
 }
 
@@ -127,13 +128,17 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 		return
 	}
 
+	relativePath := strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/")
+	route := EncodeUrl(RemoveExtension(relativePath))
+
 	if nil != obsidianVault {
+		AddPageColor(route, relativePath, bytes)
 		bytes = obsidianVault.ObsidianToMarkdown(bytes)
 	}
 
 	documentDir := path.Dir(strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/"))
 	bytes, links := MarkdownToHtml(bytes, documentDir)
-	AddPageLinks(EncodeUrl(RemoveExtension(strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/"))), links)
+	AddPageLinks(route, links)
 	error = WriteFile(bytes, newFileUrl)
 	if nil != error {
 		logger.Error(error.Error())
