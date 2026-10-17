@@ -104,7 +104,7 @@ func ReadFile(fileUrl string) ([]byte, error) {
 
 func CopyFile(file io.Reader, fileUrl string) (int64, error) {
 
-	error := os.MkdirAll(filepath.Dir(fileUrl), 0644)
+	error := os.MkdirAll(filepath.Dir(fileUrl), defaultFilePermissions)
 	if nil != error {
 		return 0, error
 	}

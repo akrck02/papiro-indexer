@@ -23,6 +23,15 @@ func WriteIndex(index *model.IndexItem, path string) {
 	error = os.WriteFile(fmt.Sprintf("%s/%s", path, "index.json"), json, defaultFilePermissions)
 }
 
+var obsidianVault *ObsidianVault
+
+// PrepareObsidianVault loads the vault references when indexing an obsidian project.
+func PrepareObsidianVault(configuration *model.IndexerConfiguration) {
+	if configuration.IsObsidianProject {
+		obsidianVault = LoadObsidianVault(configuration.Path)
+	}
+}
+
 func IndexPath(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, dirPath string) {
 
 	// files not allowed
@@ -48,6 +57,11 @@ func IndexPath(configuration *model.IndexerConfiguration, parentItem *model.Inde
 
 	// iterate over each item
 	for _, file := range files {
+
+		// obsidian configuration, trash and hidden files are not published
+		if configuration.IsObsidianProject && IsObsidianIgnored(file.Name()) {
+			continue
+		}
 
 		// check if file is accesible
 		info, error := file.Info()
@@ -110,6 +124,10 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 	if nil != error {
 		logger.Error(error.Error())
 		return
+	}
+
+	if nil != obsidianVault {
+		bytes = obsidianVault.ObsidianToMarkdown(bytes)
 	}
 
 	bytes = MarkdownToHtml(bytes)
