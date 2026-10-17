@@ -42,7 +42,7 @@ func MarkdownToHtml(md []byte, documentDir string) ([]byte, []string) {
 
 	// create HTML renderer with extensions
 	htmlFlags := html.CommonFlags | html.HrefTargetBlank
-	opts := html.RendererOptions{Flags: htmlFlags}
+	opts := html.RendererOptions{Flags: htmlFlags, RenderNodeHook: highlightCodeBlocks}
 	renderer := html.NewRenderer(opts)
 
 	return markdown.Render(doc, renderer), links

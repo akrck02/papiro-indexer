@@ -43,3 +43,20 @@ func TestMarkdownToHtmlResolvesRelativeUrls(t *testing.T) {
 		}
 	}
 }
+
+func TestCodeBlocksAreHighlighted(t *testing.T) {
+	bytes, _ := MarkdownToHtml([]byte("```go\nfunc main() { fmt.Println(\"<hi>\") } // ok\n```\n\n```\nplain <text>\n```\n\n```nope\nx < y\n```"), ".")
+	html := string(bytes)
+	for _, expected := range []string{
+		`<pre><code class="language-go">`,
+		`<span class="kd">func</span>`,
+		`<span class="s">&#34;&lt;hi&gt;&#34;</span>`,
+		`<span class="c1">// ok`,
+		"<pre><code>plain &lt;text&gt;",
+		`<pre><code class="language-nope">x &lt; y`,
+	} {
+		if !strings.Contains(html, expected) {
+			t.Errorf("%s not found in %s", expected, html)
+		}
+	}
+}
