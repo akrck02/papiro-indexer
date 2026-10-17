@@ -19,4 +19,4 @@ It converts:
 
 ## AI disclosure
 
-This project was originally handcrafted. Claude (Anthropic's AI assistant) has since helped with some changes, such as the Obsidian vault support, and they were reviewed by the author.
+This project was originally handcrafted. Claude (Anthropic's AI assistant) has since helped with some changes, such as the Obsidian vault support.
