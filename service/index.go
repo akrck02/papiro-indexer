@@ -113,7 +113,7 @@ func indexFile(configuration *model.IndexerConfiguration, parentItem *model.Inde
 func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 
 	newFileName := ChangeExtension(name, htmlExtension)
-	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveExtension(RemoveUrlStart(filePath, configuration.Path))+"."+htmlExtension)
+	newFileUrl := CreateUrl(configuration.Destination, EncodeUrl(RemoveExtension(RemoveUrlStart(filePath, configuration.Path))+"."+htmlExtension))
 
 	subitem := &model.IndexItem{
 		Type:  model.File,
@@ -161,7 +161,7 @@ func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string,
 func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 
 	newFileName := ChangeExtension(name, htmlExtension)
-	newFileUrl := CreateEncodedUrl(configuration.Destination, RemoveUrlStart(filePath, configuration.Path))
+	newFileUrl := CreateUrl(configuration.Destination, EncodeUrl(RemoveUrlStart(filePath, configuration.Path)))
 
 	subitem := &model.IndexItem{
 		Type:  model.File,
@@ -199,7 +199,7 @@ func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.
 
 func indexNonMarkupLanguagefile(configuration *model.IndexerConfiguration, _ *model.IndexItem, filePath string) {
 
-	newRoute := EncodeUrl(fmt.Sprintf("%s%s", configuration.Destination, RemoveUrlStart(filePath, configuration.Path)))
+	newRoute := fmt.Sprintf("%s%s", configuration.Destination, EncodeUrl(RemoveUrlStart(filePath, configuration.Path)))
 	file, error := OpenFile(filePath)
 	if nil != error {
 		logger.Error(error.Error())
