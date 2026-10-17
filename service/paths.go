@@ -152,9 +152,9 @@ func ChangeExtension(url string, extension string) string {
 	return fmt.Sprintf("%s.%s", RemoveExtension(url), extension)
 }
 
-// orderRegex finds the position of a page or folder in its name: "01-get-started".
-// Exactly two digits, so dates (2026-10-17) and names like "3-body" are not taken.
-var orderRegex = regexp.MustCompile(`^(\d{2})[-_ ](.+)$`)
+// orderRegex finds the position of a page or folder in its name: "1-intro",
+// "01-get-started". One or two digits, so dates (2026-10-17) are not taken.
+var orderRegex = regexp.MustCompile(`^(\d{1,2})[-_ ](.+)$`)
 
 // SplitOrder returns the position written in a name and the name without it
 func SplitOrder(name string) (int, string) {
