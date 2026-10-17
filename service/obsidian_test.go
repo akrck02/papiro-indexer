@@ -20,7 +20,7 @@ func TestObsidianToMarkdown(t *testing.T) {
 		"==mark== #tag %%hidden%% `[[code]]`\n" +
 		"```\n[[fenced]]\n```"
 
-	expected := "[Other Note](./notes/sub/other-note) [alias](./notes/sub/other-note) Missing\n" +
+	expected := "[Other Note](/Notes/Sub/Other%20Note.md) [alias](/Notes/Sub/Other%20Note.md) Missing\n" +
 		`<img src="./attachments/picture-one.png" alt="Picture One" width="200">` + "\n" +
 		"> **Careful**\n" +
 		"<mark>mark</mark> `#tag`  `[[code]]`\n" +

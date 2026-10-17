@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/akrck02/papiro-indexer/logger"
 	"github.com/akrck02/papiro-indexer/model"
@@ -130,7 +131,8 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 		bytes = obsidianVault.ObsidianToMarkdown(bytes)
 	}
 
-	bytes = MarkdownToHtml(bytes)
+	documentDir := path.Dir(strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/"))
+	bytes = MarkdownToHtml(bytes, documentDir)
 	error = WriteFile(bytes, newFileUrl)
 	if nil != error {
 		logger.Error(error.Error())

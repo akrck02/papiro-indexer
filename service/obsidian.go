@@ -109,16 +109,16 @@ func (vault *ObsidianVault) resolve(target string) string {
 
 // webPath converts a vault relative path to the url papiro serves it from.
 func webPath(relative string) string {
-	if ".md" == strings.ToLower(filepath.Ext(relative)) {
-		relative = RemoveExtension(relative)
-	}
+	return ResolveWikiUrl("/"+relative, "", true)
+}
 
-	sections := strings.Split(EncodeUrl(relative), "/")
+// rootPath converts a vault relative path to a markdown destination from the vault root.
+func rootPath(relative string) string {
+	sections := strings.Split(relative, "/")
 	for i, section := range sections {
 		sections[i] = url.PathEscape(section)
 	}
-
-	return "./" + strings.Join(sections, "/")
+	return "/" + strings.Join(sections, "/")
 }
 
 // ObsidianToMarkdown converts obsidian flavoured markdown to standard markdown.
@@ -203,6 +203,9 @@ func (vault *ObsidianVault) convertEmbed(match string) string {
 		if "" == alias {
 			alias = RemoveExtension(filepath.Base(resolved))
 		}
+		if "" == attributes {
+			return fmt.Sprintf("![%s](%s)", alias, rootPath(resolved))
+		}
 		return fmt.Sprintf(`<img src="%s" alt="%s"%s>`, webPath(resolved), alias, attributes)
 	}
 
@@ -242,7 +245,7 @@ func (vault *ObsidianVault) link(resolved string, target string, section string,
 	}
 
 	text = strings.NewReplacer("[", `\[`, "]", `\]`).Replace(text)
-	return fmt.Sprintf("[%s](%s)", text, webPath(resolved))
+	return fmt.Sprintf("[%s](%s)", text, rootPath(resolved))
 }
 
 func removeFrontmatter(text string) string {
