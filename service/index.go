@@ -75,19 +75,24 @@ func IndexPath(configuration *model.IndexerConfiguration, parentItem *model.Inde
 		// check if it is a directory or file, then index it (and children)
 		// the indexed path and the original path
 		if info.IsDir() {
-			name := EncodeUrl(file.Name())
+			order, clean := SplitOrder(file.Name())
+			name := EncodeUrl(clean)
 			subitem := &model.IndexItem{
 				Type:  model.Directory,
 				Path:  name,
 				Files: make(map[string]model.IndexItem),
+				Order: order,
 			}
 			subDirPath := CreateUrl(dirPath, info.Name())
 			IndexPath(configuration, subitem, subDirPath)
 
 			if 0 != len(subitem.Files) {
-				_, exists := parentItem.Files[name]
+				existing, exists := parentItem.Files[name]
 				if exists {
-					subitem.Path = parentItem.Files[name].Path
+					subitem.Path = existing.Path
+					if 0 == subitem.Order {
+						subitem.Order = existing.Order
+					}
 				}
 				parentItem.Files[name] = *subitem
 			}
@@ -113,13 +118,15 @@ func indexFile(configuration *model.IndexerConfiguration, parentItem *model.Inde
 
 func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 
-	newFileName := ChangeExtension(name, htmlExtension)
-	newFileUrl := CreateUrl(configuration.Destination, EncodeUrl(RemoveExtension(RemoveUrlStart(filePath, configuration.Path))+"."+htmlExtension))
+	order, cleanName := SplitOrder(name)
+	newFileName := ChangeExtension(cleanName, htmlExtension)
+	newFileUrl := CreateUrl(configuration.Destination, EncodeUrl(CleanPath(RemoveExtension(RemoveUrlStart(filePath, configuration.Path)), true)+"."+htmlExtension))
 
 	subitem := &model.IndexItem{
 		Type:  model.File,
 		Path:  EncodeUrl(newFileName),
 		Files: make(map[string]model.IndexItem),
+		Order: order,
 	}
 
 	bytes, error := ReadFile(filePath)
@@ -129,7 +136,7 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 	}
 
 	relativePath := strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/")
-	route := EncodeUrl(RemoveExtension(relativePath))
+	route := EncodeUrl(CleanPath(RemoveExtension(relativePath), true))
 
 	if nil != obsidianVault {
 		AddPageColor(route, relativePath, bytes)
@@ -147,17 +154,7 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 
 	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newFileUrl)
 
-	index := EncodeUrl(RemoveExtension(name))
-	_, exists := parentItem.Files[index]
-	if exists {
-		parentItem.Files[index] = model.IndexItem{
-			Path:  subitem.Path,
-			Type:  parentItem.Files[index].Type,
-			Files: parentItem.Files[index].Files,
-		}
-	} else {
-		parentItem.Files[index] = *subitem
-	}
+	addToParent(parentItem, EncodeUrl(RemoveExtension(cleanName)), subitem)
 }
 
 func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string, newExtension string) string {
@@ -166,13 +163,15 @@ func getNewFileRoute(configuration *model.IndexerConfiguration, filePath string,
 
 func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.IndexItem, filePath string, name string) {
 
-	newFileName := ChangeExtension(name, htmlExtension)
-	newFileUrl := CreateUrl(configuration.Destination, EncodeUrl(RemoveUrlStart(filePath, configuration.Path)))
+	order, cleanName := SplitOrder(name)
+	newFileName := ChangeExtension(cleanName, htmlExtension)
+	newFileUrl := CreateUrl(configuration.Destination, EncodeUrl(CleanPath(RemoveUrlStart(filePath, configuration.Path), true)))
 
 	subitem := &model.IndexItem{
 		Type:  model.File,
 		Path:  EncodeUrl(newFileName),
 		Files: make(map[string]model.IndexItem),
+		Order: order,
 	}
 
 	bytes, error := ReadFile(filePath)
@@ -189,23 +188,13 @@ func indexHtmlFile(configuration *model.IndexerConfiguration, parentItem *model.
 
 	logger.Log("▸", "📜", path.Base(filePath), "⤳ ", newFileUrl)
 
-	index := EncodeUrl(RemoveExtension(name))
-	_, exists := parentItem.Files[index]
-	if exists {
-		parentItem.Files[index] = model.IndexItem{
-			Path:  subitem.Path,
-			Type:  parentItem.Files[index].Type,
-			Files: parentItem.Files[index].Files,
-		}
-	} else {
-		parentItem.Files[index] = *subitem
-	}
+	addToParent(parentItem, EncodeUrl(RemoveExtension(cleanName)), subitem)
 
 }
 
 func indexNonMarkupLanguagefile(configuration *model.IndexerConfiguration, _ *model.IndexItem, filePath string) {
 
-	newRoute := fmt.Sprintf("%s%s", configuration.Destination, EncodeUrl(RemoveUrlStart(filePath, configuration.Path)))
+	newRoute := fmt.Sprintf("%s%s", configuration.Destination, EncodeUrl(CleanPath(RemoveUrlStart(filePath, configuration.Path), false)))
 	file, error := OpenFile(filePath)
 	if nil != error {
 		logger.Error(error.Error())
@@ -214,4 +203,25 @@ func indexNonMarkupLanguagefile(configuration *model.IndexerConfiguration, _ *mo
 
 	CopyFile(file, newRoute)
 	// logger.Log("▸", "🖼️ ", path.Base(filePath), "⤳ ", newRoute)
+}
+
+// addToParent adds a page to its folder; a page with the name of a folder
+// next to it becomes the page of that folder, keeping its pages
+func addToParent(parentItem *model.IndexItem, index string, subitem *model.IndexItem) {
+	existing, exists := parentItem.Files[index]
+	if !exists {
+		parentItem.Files[index] = *subitem
+		return
+	}
+
+	order := existing.Order
+	if 0 == order {
+		order = subitem.Order
+	}
+	parentItem.Files[index] = model.IndexItem{
+		Path:  subitem.Path,
+		Type:  existing.Type,
+		Files: existing.Files,
+		Order: order,
+	}
 }

@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -148,4 +150,32 @@ func RemoveSlashes(url string) string {
 
 func ChangeExtension(url string, extension string) string {
 	return fmt.Sprintf("%s.%s", RemoveExtension(url), extension)
+}
+
+// orderRegex finds the position of a page or folder in its name: "01-get-started".
+// Exactly two digits, so dates (2026-10-17) and names like "3-body" are not taken.
+var orderRegex = regexp.MustCompile(`^(\d{2})[-_ ](.+)$`)
+
+// SplitOrder returns the position written in a name and the name without it
+func SplitOrder(name string) (int, string) {
+	match := orderRegex.FindStringSubmatch(name)
+	if nil == match {
+		return 0, name
+	}
+
+	order, _ := strconv.Atoi(match[1])
+	return order, match[2]
+}
+
+// CleanPath removes the position prefixes of the folders of a path, and of
+// its last section when it is a page (other files keep their name)
+func CleanPath(path string, isPage bool) string {
+	sections := strings.Split(path, "/")
+	for i, section := range sections {
+		if i == len(sections)-1 && !isPage {
+			continue
+		}
+		_, sections[i] = SplitOrder(section)
+	}
+	return strings.Join(sections, "/")
 }

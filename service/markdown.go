@@ -92,6 +92,10 @@ func ResolveWikiUrl(destination string, documentDir string, isLink bool) string 
 		target = ""
 	}
 
+	// folders and pages are published without their "01-" position prefix
+	isPage := isLink && ("" == path.Ext(target) || ".md" == strings.ToLower(path.Ext(target)))
+	target = CleanPath(target, isPage)
+
 	// pages are served without extension, the section can't be kept because
 	// papiro uses the url hash for routing
 	if isLink && ".md" == strings.ToLower(path.Ext(target)) {
