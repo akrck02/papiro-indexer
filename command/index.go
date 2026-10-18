@@ -20,5 +20,6 @@ func Index(configuration *model.IndexerConfiguration) {
 	service.WriteIndex(&index, configuration.Destination)
 	service.WriteGraph(configuration.Destination)
 	service.WriteGraphColors(configuration.Destination)
+	service.WriteSearch(configuration.Destination)
 	fmt.Println("\n", "⤷ Indexed in", time.Now().Sub(startTime).Milliseconds(), "ms.")
 }

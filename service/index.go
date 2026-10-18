@@ -143,6 +143,9 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 		bytes = obsidianVault.ObsidianToMarkdown(bytes)
 	}
 
+	// what search.json holds, from the markdown papiro shows (obsidian syntax converted)
+	AddPageSearch(route, bytes)
+
 	documentDir := path.Dir(strings.TrimPrefix(RemoveUrlStart(filePath, configuration.Path), "/"))
 	bytes, links := MarkdownToHtml(bytes, documentDir)
 	AddPageLinks(route, links)
