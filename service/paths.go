@@ -156,15 +156,16 @@ func ChangeExtension(url string, extension string) string {
 // "01-get-started". One or two digits, so dates (2026-10-17) are not taken.
 var orderRegex = regexp.MustCompile(`^(\d{1,2})[-_ ](.+)$`)
 
-// SplitOrder returns the position written in a name and the name without it
-func SplitOrder(name string) (int, string) {
+// SplitOrder returns the position written in a name, nil when it has none,
+// and the name without it
+func SplitOrder(name string) (*int, string) {
 	match := orderRegex.FindStringSubmatch(name)
 	if nil == match {
-		return 0, name
+		return nil, name
 	}
 
 	order, _ := strconv.Atoi(match[1])
-	return order, match[2]
+	return &order, match[2]
 }
 
 // CleanPath removes the position prefixes of the folders of a path, and of

@@ -90,7 +90,7 @@ func IndexPath(configuration *model.IndexerConfiguration, parentItem *model.Inde
 				existing, exists := parentItem.Files[name]
 				if exists {
 					subitem.Path = existing.Path
-					if 0 == subitem.Order {
+					if nil == subitem.Order {
 						subitem.Order = existing.Order
 					}
 				}
@@ -215,7 +215,7 @@ func addToParent(parentItem *model.IndexItem, index string, subitem *model.Index
 	}
 
 	order := existing.Order
-	if 0 == order {
+	if nil == order {
 		order = subitem.Order
 	}
 	parentItem.Files[index] = model.IndexItem{
