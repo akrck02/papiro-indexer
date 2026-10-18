@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/gomarkdown/markdown"
@@ -36,6 +38,10 @@ func MarkdownToHtml(md []byte, documentDir string) ([]byte, []string) {
 			item.Destination = []byte(resolved)
 		case *ast.Image:
 			item.Destination = []byte(ResolveWikiUrl(string(item.Destination), documentDir, false))
+		case *ast.HTMLBlock:
+			item.Literal = resolveHtmlUrls(item.Literal, documentDir)
+		case *ast.HTMLSpan:
+			item.Literal = resolveHtmlUrls(item.Literal, documentDir)
 		}
 		return ast.GoToNext
 	})
@@ -60,6 +66,39 @@ func pageRoute(resolved string) (string, bool) {
 	}
 
 	return route, true
+}
+
+// htmlUrlRegex finds the addresses of html written in the markdown:
+// <img src>, <source srcset>, <a href>…
+var htmlUrlRegex = regexp.MustCompile(`(?i)\b(src|href|srcset)\s*=\s*("[^"]*"|'[^']*')`)
+
+// resolveHtmlUrls points the relative addresses of html written in the
+// markdown to the wiki root, as markdown links and images are
+func resolveHtmlUrls(html []byte, documentDir string) []byte {
+	return htmlUrlRegex.ReplaceAllFunc(html, func(match []byte) []byte {
+		parts := htmlUrlRegex.FindSubmatch(match)
+		attribute := strings.ToLower(string(parts[1]))
+		quote := parts[2][:1]
+		value := string(parts[2][1 : len(parts[2])-1])
+
+		if "srcset" == attribute {
+			// "a.png 1x, b.png 2x": each candidate is an address and a descriptor
+			candidates := strings.Split(value, ",")
+			for i, candidate := range candidates {
+				fields := strings.Fields(candidate)
+				if 0 == len(fields) {
+					continue
+				}
+				fields[0] = ResolveWikiUrl(fields[0], documentDir, false)
+				candidates[i] = strings.Join(fields, " ")
+			}
+			value = strings.Join(candidates, ", ")
+		} else {
+			value = ResolveWikiUrl(value, documentDir, "href" == attribute)
+		}
+
+		return []byte(fmt.Sprintf("%s=%s%s%s", parts[1], quote, value, quote))
+	})
 }
 
 // ResolveWikiUrl converts a url relative to the document directory (or to the

@@ -60,3 +60,22 @@ func TestCodeBlocksAreHighlighted(t *testing.T) {
 		}
 	}
 }
+
+func TestHtmlInMarkdownIsResolved(t *testing.T) {
+	md := "<p align=\"center\"><img alt=\"\" src=\"images/logo.svg\" width=\"120\"></p>\n\n" +
+		"<picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"images/hero-dark.png 1x, images/hero-dark@2x.png 2x\"><img src='images/hero.png'></picture>\n\n" +
+		"Text with <a href=\"tutorial/01-start.md\">a link</a> and <a href=\"https://example.com\">another</a>.\n"
+	bytes, _ := MarkdownToHtml([]byte(md), "guides")
+	html := string(bytes)
+	for _, expected := range []string{
+		`src="./guides/images/logo.svg"`,
+		`srcset="./guides/images/hero-dark.png 1x, ./guides/images/hero-dark@2x.png 2x"`,
+		`src='./guides/images/hero.png'`,
+		`href="./guides/tutorial/start"`,
+		`href="https://example.com"`,
+	} {
+		if !strings.Contains(html, expected) {
+			t.Errorf("%s not found in %s", expected, html)
+		}
+	}
+}
