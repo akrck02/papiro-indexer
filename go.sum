@@ -1,3 +1,5 @@
+github.com/akrck02/go-markdown v0.1.0 h1:43AykJd65lSbnmIosWChnBtxzTOwHO3hp/BtSRDyH3A=
+github.com/akrck02/go-markdown v0.1.0/go.mod h1:CglvatpHai1Dzilf1ExreMH93CxYWuxHJGka7+dgrz8=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/chroma/v2 v2.27.0 h1:FodwmyOBgJULFYmDqibcp9pvfDLWdtPRh9v/r5BXYZs=

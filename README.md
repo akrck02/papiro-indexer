@@ -13,10 +13,11 @@ papiro-indexer -path ./my/vault -destination ./resources/wiki -obsidian
 
 It converts:
 
-- `[[note]]`, `[[folder/note#section|alias]]` wikilinks into links (resolved like Obsidian, by name or path).
+- `[[note]]`, `[[folder/note#section|alias]]` wikilinks into links. As in Obsidian, a link leads to a path
+  from the note's folder, then from the vault root, then to the nearest note with that name or alias.
 - `![[image.png]]` and `![[image.png|300]]` embeds into images; note embeds into links.
 - `> [!type] title` callouts into quotes with a bold title.
-- `==highlights==`, `#tags` and `%%comments%%`.
+- `==highlights==` into `<mark>`, `#tags` into code, and `%%comments%%` are removed.
 - YAML frontmatter is removed and hidden folders (`.obsidian`, `.trash`) are not published.
 
 ## AI disclosure

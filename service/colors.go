@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	obsidian "github.com/akrck02/go-markdown"
 	"github.com/akrck02/papiro-indexer/logger"
 	"gopkg.in/yaml.v3"
 )
@@ -92,7 +93,7 @@ func newColorPage(relativePath string, text string) colorPage {
 	page := colorPage{
 		path:       strings.TrimPrefix(filepath.ToSlash(relativePath), "/"),
 		name:       RemoveExtension(filepath.Base(relativePath)),
-		content:    removeFrontmatter(text),
+		content:    withoutFrontMatter(text),
 		properties: map[string]any{},
 	}
 
@@ -110,11 +111,29 @@ func newColorPage(relativePath string, text string) colorPage {
 			}
 		}
 	}
-	for _, match := range tagRegex.FindAllStringSubmatch(page.content, -1) {
-		page.tags = append(page.tags, match[2])
-	}
+	page.tags = append(page.tags, tagsWrittenIn(text)...)
 
 	return page
+}
+
+// withoutFrontMatter is a note's text after its front matter.
+func withoutFrontMatter(text string) string {
+	lines := strings.Split(text, "\n")
+	return strings.Join(lines[obsidian.FrontMatterLines(lines):], "\n")
+}
+
+// tagsWrittenIn is every #tag in a note's text, without its "#". Tags in code are not tags, as in
+// Obsidian.
+func tagsWrittenIn(text string) []string {
+	var tags []string
+	for _, block := range obsidian.Parse(text) {
+		for _, span := range block.AllSpans() {
+			if obsidian.Tag == span.Link.Kind {
+				tags = append(tags, span.Link.Target)
+			}
+		}
+	}
+	return tags
 }
 
 // matchesQuery evaluates a search query of obsidian: alternatives joined by
