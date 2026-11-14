@@ -140,7 +140,7 @@ func indexMarkdownFile(configuration *model.IndexerConfiguration, parentItem *mo
 
 	if nil != obsidianVault {
 		AddPageColor(route, relativePath, bytes)
-		bytes = obsidianVault.ObsidianToMarkdown(bytes)
+		bytes = obsidianVault.ObsidianToMarkdown(bytes, relativePath)
 	}
 
 	// what search.json holds, from the markdown papiro shows (obsidian syntax converted)
